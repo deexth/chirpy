@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -23,6 +25,17 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 
 	return token[1], nil
+}
+
+func MakeRefreshToken() (string, error) {
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		return "", fmt.Errorf("issue creating a random key: %v", err)
+	}
+
+	encodedStr := hex.EncodeToString(key)
+	return encodedStr, nil
 }
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {

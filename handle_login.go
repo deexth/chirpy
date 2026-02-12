@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/deexth/chirpy/internal/auth"
+	"github.com/deexth/chirpy/internal/database"
 )
 
 func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password  string        `json:"password"`
-		Email     string        `json:"email"`
-		ExpiresIn time.Duration `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type response struct {
 		User
@@ -41,12 +41,27 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if params.ExpiresIn == 0 {
-		params.ExpiresIn = 3600
-	}
-	accessToken, err := auth.MakeJWT(user.ID, cfg.tokenSecret, params.ExpiresIn)
+	expiresIn := time.Hour
+	accessToken, err := auth.MakeJWT(user.ID, cfg.tokenSecret, expiresIn)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "issue creating token", err)
+		return
+	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "issue creating token", err)
+		return
+	}
+
+	expiresIn = time.Hour * 24 * 60
+	respToken, err := cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(expiresIn),
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "issue creating refresh token", err)
 		return
 	}
 
@@ -57,6 +72,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 		},
-		Token: accessToken,
+		Token:        accessToken,
+		RefreshToken: respToken.Token,
 	})
 }
