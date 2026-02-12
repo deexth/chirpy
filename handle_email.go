@@ -15,6 +15,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *apiConfig) handleUsers(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +33,7 @@ func (cfg *apiConfig) handleUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(params.Password) < 6 {
+	if len(params.Password) < 3 {
 		respondWithError(w, http.StatusBadRequest, "password must be atleast 8 characters", nil)
 		return
 	}

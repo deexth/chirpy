@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	tokenSecret    string
 }
 
 func main() {
@@ -30,6 +31,11 @@ func main() {
 		log.Fatal("No platform set")
 	}
 
+	tSecret := os.Getenv("TOKEN_SECRET")
+	if tSecret == "" {
+		log.Fatal("No token secret found")
+	}
+
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Couldn't connect to the db: %v", err)
@@ -42,6 +48,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		platform:       platform,
+		tokenSecret:    tSecret,
 	}
 	mux.Handle("/app/", apicfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("./")))))
 	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
