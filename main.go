@@ -61,10 +61,12 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apicfg.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apicfg.handleReset)
 	mux.HandleFunc("POST /api/users", apicfg.handleUsers)
+	mux.HandleFunc("PUT /api/users", apicfg.handleUpdateUser)
 	mux.HandleFunc("POST /api/login", apicfg.handleLogin)
 	mux.HandleFunc("POST /api/chirps", apicfg.handleChirps)
 	mux.HandleFunc("GET /api/chirps", apicfg.handleGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apicfg.handleGetChirp)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apicfg.handleChirpDeletion)
 	mux.HandleFunc("POST /api/refresh", apicfg.handleRefresh)
 	mux.HandleFunc("POST /api/revoke", apicfg.handleRevoke)
 

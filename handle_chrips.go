@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -102,11 +103,54 @@ func (cfg *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handleGetChirp(w http.ResponseWriter, r *http.Request) {
-	chirp, err := cfg.db.GetChirp(r.Context(), uuid.MustParse(r.PathValue("chirpID")))
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "unauthorized", err)
+		return
+	}
+
+	chirp, err := cfg.db.GetChirp(r.Context(), chirpID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "issue retrieving chirp", err)
 		return
 	}
 
 	respondWithJSON(w, http.StatusOK, Chirp(chirp))
+}
+
+func (cfg *apiConfig) handleChirpDeletion(w http.ResponseWriter, r *http.Request) {
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "unauthorized", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(accessToken, cfg.tokenSecret)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "unauthorized", err)
+		return
+	}
+
+	chirpID, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "unauthorized", err)
+		return
+	}
+
+	numAffectedRows, err := cfg.db.DeleteChirp(r.Context(), database.DeleteChirpParams{
+		UserID: userID,
+		ID:     chirpID,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "chirp not found", err)
+		return
+	}
+
+	if numAffectedRows == 0 {
+		respondWithError(w, http.StatusForbidden, "chirp not found", errors.New("no rows affected"))
+		return
+
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -13,3 +13,7 @@ SELECT *
 
 -- name: GetChirp :one
 SELECT * FROM chirps WHERE id = $1;
+
+-- name: DeleteChirp :execrows
+DELETE FROM chirps
+    WHERE id = $1 AND user_id = $2;
