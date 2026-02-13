@@ -48,15 +48,15 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken, err := auth.MakeRefreshToken()
+	token, err := auth.MakeRefreshToken()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "issue creating token", err)
 		return
 	}
 
 	expiresIn = time.Hour * 24 * 60
-	respToken, err := cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
-		Token:     refreshToken,
+	refreshToken, err := cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     token,
 		UserID:    user.ID,
 		ExpiresAt: time.Now().Add(expiresIn),
 	})
@@ -73,6 +73,6 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 		},
 		Token:        accessToken,
-		RefreshToken: respToken.Token,
+		RefreshToken: refreshToken,
 	})
 }

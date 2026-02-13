@@ -7,7 +7,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,7 +17,7 @@ INSERT INTO refresh_tokens (
     token,
     user_id,
     expires_at
-) VALUES ( $1, $2, $3 ) RETURNING token, revoked_at
+) VALUES ( $1, $2, $3 ) RETURNING token
 `
 
 type CreateRefreshTokenParams struct {
@@ -27,16 +26,11 @@ type CreateRefreshTokenParams struct {
 	ExpiresAt time.Time
 }
 
-type CreateRefreshTokenRow struct {
-	Token     string
-	RevokedAt sql.NullTime
-}
-
-func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (CreateRefreshTokenRow, error) {
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (string, error) {
 	row := q.db.QueryRowContext(ctx, createRefreshToken, arg.Token, arg.UserID, arg.ExpiresAt)
-	var i CreateRefreshTokenRow
-	err := row.Scan(&i.Token, &i.RevokedAt)
-	return i, err
+	var token string
+	err := row.Scan(&token)
+	return token, err
 }
 
 const getRefreshTokenUser = `-- name: GetRefreshTokenUser :one
