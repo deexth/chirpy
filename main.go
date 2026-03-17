@@ -17,6 +17,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	tokenSecret    string
+	apiKey         string
 }
 
 func main() {
@@ -36,6 +37,11 @@ func main() {
 		log.Fatal("No token secret found")
 	}
 
+	apiKey := os.Getenv("POLKA_KEY")
+	if apiKey == "" {
+		log.Fatal("No apiKey found")
+	}
+
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Couldn't connect to the db: %v", err)
@@ -44,12 +50,15 @@ func main() {
 	dbQueries := database.New(db)
 
 	mux := http.NewServeMux()
+
 	apicfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		platform:       platform,
 		tokenSecret:    tSecret,
+		apiKey:         apiKey,
 	}
+
 	mux.Handle("/app/", apicfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("./")))))
 	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
@@ -69,6 +78,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apicfg.handleChirpDeletion)
 	mux.HandleFunc("POST /api/refresh", apicfg.handleRefresh)
 	mux.HandleFunc("POST /api/revoke", apicfg.handleRevoke)
+	mux.HandleFunc("POST /api/polka/webhooks", apicfg.handleUpgradeToChirpyRed)
 
 	server := &http.Server{
 		Addr:    ":8080",

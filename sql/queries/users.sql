@@ -3,7 +3,7 @@ INSERT INTO users (
     id,
     email,
     password
-) VALUES ( $1, $2, $3 ) RETURNING id, email, created_at, updated_at;
+) VALUES ( $1, $2, $3 ) RETURNING id, email, created_at, updated_at, is_chirpy_red;
 
 -- name: GetUser :one
 SELECT *
@@ -13,4 +13,9 @@ SELECT *
 -- name: UpdateUserPassword :exec
 UPDATE users
     SET password = $2, email = $3
+    WHERE id = $1;
+
+-- name: UpgradeUserToChirpyRed :execrows
+UPDATE users
+    SET is_chirpy_red = true
     WHERE id = $1;

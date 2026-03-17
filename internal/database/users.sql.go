@@ -17,7 +17,7 @@ INSERT INTO users (
     id,
     email,
     password
-) VALUES ( $1, $2, $3 ) RETURNING id, email, created_at, updated_at
+) VALUES ( $1, $2, $3 ) RETURNING id, email, created_at, updated_at, is_chirpy_red
 `
 
 type CreateUserParams struct {
@@ -27,10 +27,11 @@ type CreateUserParams struct {
 }
 
 type CreateUserRow struct {
-	ID        uuid.UUID
-	Email     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          uuid.UUID
+	Email       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	IsChirpyRed bool
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -41,12 +42,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, created_at, updated_at, email, password
+SELECT id, created_at, updated_at, is_chirpy_red, email, password
     FROM users
     WHERE email = $1
 `
@@ -58,6 +60,7 @@ func (q *Queries) GetUser(ctx context.Context, email string) (User, error) {
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsChirpyRed,
 		&i.Email,
 		&i.Password,
 	)
@@ -79,4 +82,18 @@ type UpdateUserPasswordParams struct {
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.ID, arg.Password, arg.Email)
 	return err
+}
+
+const upgradeUserToChirpyRed = `-- name: UpgradeUserToChirpyRed :execrows
+UPDATE users
+    SET is_chirpy_red = true
+    WHERE id = $1
+`
+
+func (q *Queries) UpgradeUserToChirpyRed(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, upgradeUserToChirpyRed, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
