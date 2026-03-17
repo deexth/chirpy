@@ -76,12 +76,54 @@ func (q *Queries) GetChirp(ctx context.Context, id uuid.UUID) (Chirp, error) {
 const getChirps = `-- name: GetChirps :many
 SELECT id, created_at, updated_at, body, user_id
     FROM chirps
-    ORDER BY updated_at
+    ORDER BY created_at ASC
     LIMIT $1
 `
 
 func (q *Queries) GetChirps(ctx context.Context, limit int32) ([]Chirp, error) {
 	rows, err := q.db.QueryContext(ctx, getChirps, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Chirp
+	for rows.Next() {
+		var i Chirp
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Body,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChirpsByAuthorID = `-- name: GetChirpsByAuthorID :many
+SELECT id, created_at, updated_at, body, user_id
+    FROM chirps
+    WHERE user_id = $1
+    ORDER BY created_at ASC
+    LIMIT $2
+`
+
+type GetChirpsByAuthorIDParams struct {
+	UserID uuid.UUID
+	Limit  int32
+}
+
+func (q *Queries) GetChirpsByAuthorID(ctx context.Context, arg GetChirpsByAuthorIDParams) ([]Chirp, error) {
+	rows, err := q.db.QueryContext(ctx, getChirpsByAuthorID, arg.UserID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

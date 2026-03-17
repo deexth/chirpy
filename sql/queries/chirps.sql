@@ -8,8 +8,15 @@ INSERT INTO chirps (
 -- name: GetChirps :many
 SELECT *
     FROM chirps
-    ORDER BY updated_at
+    ORDER BY created_at ASC
     LIMIT $1;
+
+-- name: GetChirpsByAuthorID :many
+SELECT *
+    FROM chirps
+    WHERE user_id = $1
+    ORDER BY created_at ASC
+    LIMIT $2;
 
 -- name: GetChirp :one
 SELECT * FROM chirps WHERE id = $1;

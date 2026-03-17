@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/deexth/chirpy/internal/auth"
@@ -16,7 +18,7 @@ type Chirp struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Body      string    `json:"body"`
-	UserID    uuid.UUID `json:"user_id"`
+	UserID    uuid.UUID `json:"userID"`
 }
 
 func (cfg *apiConfig) handleChirps(w http.ResponseWriter, r *http.Request) {
@@ -86,17 +88,46 @@ func (cfg *apiConfig) handleChirps(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (cfg *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.db.GetChirps(r.Context(), 5)
+func getAuthorID(id string) (uuid.UUID, error) {
+	authorID, err := uuid.Parse(id)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "issue retrieving chirps", err)
-		return
+		return uuid.UUID{}, fmt.Errorf("issue parsing author id: %v", err)
+	}
+
+	return authorID, nil
+}
+
+func (cfg *apiConfig) handleGetChirps(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("author_id")
+	sortOpt := r.URL.Query().Get("sort")
+
+	var chirps []database.Chirp
+	if userID != "" {
+		authorID, err := getAuthorID(r.URL.Query().Get("author_id"))
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "something went wrong", err)
+		}
+	} else {
+		chirps, err = cfg.db.GetChirps(r.Context(), database.GetChirpsParams{
+			Limit:   5,
+			Column1: authorID.UUID,
+		})
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "issue retrieving chirps", err)
+			return
+		}
 	}
 
 	newChirps := make([]Chirp, 0, len(chirps))
 
 	for _, chirp := range chirps {
 		newChirps = append(newChirps, Chirp(chirp))
+	}
+
+	if sortOpt == "desc" {
+		sort.Slice(newChirps, func(i, j int) bool { return newChirps[i].CreatedAt.After(newChirps[j].CreatedAt) })
+	} else {
+		sort.Slice(newChirps, func(i, j int) bool { return newChirps[i].CreatedAt.Before(newChirps[j].CreatedAt) })
 	}
 
 	respondWithJSON(w, http.StatusOK, newChirps)
